@@ -32,14 +32,24 @@ function CardForm({ onSave, onCancel }) {
 }
 
 function PurchaseForm({ cardId, onSave, onCancel }) {
-    const [form, setForm] = useState({ description: '', amount: '', installments: '1', startDate: new Date().toISOString().slice(0, 7) });
+    const [form, setForm] = useState({ description: '', amountPerInstallment: '', installments: '1', startDate: new Date().toISOString().slice(0, 7) });
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onSave({ ...form, cardId }); }} className="bg-[#1a1a2e] rounded-xl p-4 mt-3 animate-fade-in border border-[#7c3aed]/30">
+        <form onSubmit={(e) => {
+            e.preventDefault();
+            const totalAmount = Number(form.amountPerInstallment) * Number(form.installments);
+            onSave({
+                description: form.description,
+                amount: totalAmount,
+                installments: form.installments,
+                startDate: form.startDate,
+                cardId
+            });
+        }} className="bg-[#1a1a2e] rounded-xl p-4 mt-3 animate-fade-in border border-[#7c3aed]/30">
             <h4 className="text-white font-medium mb-3 text-sm flex items-center gap-2"><ShoppingBag size={14} className="text-[#7c3aed]" />Nova Compra Parcelada</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="col-span-2"><label className="label text-xs">Descrição</label><input className="input text-sm py-2" placeholder="TV, Celular..." value={form.description} onChange={e => set('description', e.target.value)} required /></div>
-                <div><label className="label text-xs">Valor Total (R$)</label><input className="input text-sm py-2" type="number" placeholder="1200" value={form.amount} onChange={e => set('amount', e.target.value)} required /></div>
+                <div><label className="label text-xs">Valor da Parcela (R$)</label><input className="input text-sm py-2" type="number" step="0.01" placeholder="100.50" value={form.amountPerInstallment} onChange={e => set('amountPerInstallment', e.target.value)} required /></div>
                 <div><label className="label text-xs">Parcelas</label><input className="input text-sm py-2" type="number" min="1" max="60" value={form.installments} onChange={e => set('installments', e.target.value)} /></div>
                 <div className="col-span-2"><label className="label text-xs">Mês Inicial</label><input className="input text-sm py-2" type="month" value={form.startDate} onChange={e => set('startDate', e.target.value)} /></div>
             </div>
