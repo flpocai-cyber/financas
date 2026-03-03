@@ -16,8 +16,8 @@ const getWeekdaysInMonth = (year, month, dayOfWeekName) => {
         'Domingo': 0, 'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3,
         'Quinta-feira': 4, 'Sexta-feira': 5, 'Sábado': 6
     };
-    const targetDay = daysMap[dayOfWeekName];
-    if (targetDay === undefined) return 4.33; // fallback se não tiver
+    const targetDay = daysMap[dayOfWeekName || 'Sexta-feira'];
+    if (targetDay === undefined) return 4.33; // fallback se não tiver nenhum válido
 
     let count = 0;
     const date = new Date(year, month - 1, 1);
