@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency } from '../utils/formatters';
-import { Plus, Trash2, CreditCard, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react';
+import { Plus, Trash2, CreditCard, ChevronDown, ChevronUp, ShoppingBag, CalendarDays, TrendingUp } from 'lucide-react';
 
 const BRANDS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard', 'Outros'];
-const brandColors = { Visa: 'from-[#1a1f71] to-[#0a0e3f]', Mastercard: 'from-[#eb001b] to-[#7a0010]', Elo: 'from-[#f59e0b] to-[#92400e]', Amex: 'from-[#007bc1] to-[#003d60]', Hipercard: 'from-[#cc0000] to-[#660000]', Outros: 'from-[#4f8ef7] to-[#1d4ed8]' };
+const brandColors = {
+    Visa: 'from-[#1a1f71] to-[#0a0e3f]',
+    Mastercard: 'from-[#eb001b] to-[#7a0010]',
+    Elo: 'from-[#f59e0b] to-[#92400e]',
+    Amex: 'from-[#007bc1] to-[#003d60]',
+    Hipercard: 'from-[#cc0000] to-[#660000]',
+    Outros: 'from-[#4f8ef7] to-[#1d4ed8]'
+};
 
 function CardForm({ onSave, onCancel }) {
     const [form, setForm] = useState({ name: '', brand: 'Visa', limit: '', dueDay: '', closingDay: '' });
@@ -34,18 +41,117 @@ function PurchaseForm({ cardId, onSave, onCancel }) {
                 <div className="col-span-2"><label className="label text-xs">Descrição</label><input className="input text-sm py-2" placeholder="TV, Celular..." value={form.description} onChange={e => set('description', e.target.value)} required /></div>
                 <div><label className="label text-xs">Valor Total (R$)</label><input className="input text-sm py-2" type="number" placeholder="1200" value={form.amount} onChange={e => set('amount', e.target.value)} required /></div>
                 <div><label className="label text-xs">Parcelas</label><input className="input text-sm py-2" type="number" min="1" max="60" value={form.installments} onChange={e => set('installments', e.target.value)} /></div>
-                <div><label className="label text-xs">Mês Inicial</label><input className="input text-sm py-2" type="month" value={form.startDate} onChange={e => set('startDate', e.target.value)} /></div>
+                <div className="col-span-2"><label className="label text-xs">Mês Inicial</label><input className="input text-sm py-2" type="month" value={form.startDate} onChange={e => set('startDate', e.target.value)} /></div>
             </div>
             <div className="flex gap-2 mt-3"><button type="submit" className="btn-primary text-sm px-4 py-2">Adicionar</button><button type="button" onClick={onCancel} className="text-xs text-gray-400 hover:text-white px-3 py-2">Cancelar</button></div>
         </form>
     );
 }
 
+function BillsProjection({ card, getInstallmentsForCardAndMonth }) {
+    const now = new Date();
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const value = getInstallmentsForCardAndMonth(card.id, d.getFullYear(), d.getMonth() + 1);
+        months.push({
+            label: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+            fullLabel: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+            value,
+            isCurrentMonth: i === 0,
+        });
+    }
+
+    const maxValue = Math.max(...months.map(m => m.value), 1);
+    const total = months.reduce((s, m) => s + m.value, 0);
+    const average = total / 12;
+
+    return (
+        <div className="mt-4 pt-4 border-t border-[#1e1e32]">
+            <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <CalendarDays size={14} className="text-[#4f8ef7]" />
+                    Previsão de Faturas — Próximos 12 Meses
+                </h4>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>Média: <span className="text-[#4f8ef7] font-semibold">{formatCurrency(average)}</span></span>
+                    <span>Total: <span className="text-[#a855f7] font-semibold">{formatCurrency(total)}</span></span>
+                </div>
+            </div>
+
+            {/* Bar chart visual */}
+            <div className="grid grid-cols-12 gap-1 mb-3 items-end h-20">
+                {months.map((m, i) => {
+                    const pct = maxValue > 0 ? (m.value / maxValue) * 100 : 0;
+                    const isAboveAvg = m.value > average && m.value > 0;
+                    return (
+                        <div key={i} className="flex flex-col items-center gap-1 h-full justify-end" title={`${m.fullLabel}: ${formatCurrency(m.value)}`}>
+                            <div
+                                className={`w-full rounded-t-sm transition-all duration-500 ${m.isCurrentMonth
+                                        ? 'bg-[#4f8ef7]'
+                                        : isAboveAvg
+                                            ? 'bg-[#f43f5e]/70'
+                                            : 'bg-[#7c3aed]/60'
+                                    }`}
+                                style={{ height: `${Math.max(pct, m.value > 0 ? 8 : 2)}%` }}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Month labels */}
+            <div className="grid grid-cols-12 gap-1 mb-4">
+                {months.map((m, i) => (
+                    <div key={i} className={`text-center text-[9px] ${m.isCurrentMonth ? 'text-[#4f8ef7] font-bold' : 'text-gray-600'}`}>
+                        {m.label.split(' ')[0]}
+                    </div>
+                ))}
+            </div>
+
+            {/* Table list */}
+            <div className="space-y-1.5">
+                {months.map((m, i) => {
+                    const pct = Number(card.limit) > 0 ? (m.value / Number(card.limit)) * 100 : 0;
+                    const isAboveAvg = m.value > average && m.value > 0;
+                    return (
+                        <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${m.isCurrentMonth ? 'bg-[#4f8ef7]/10 border border-[#4f8ef7]/20' : 'bg-[#0f0f1a]'}`}>
+                            <span className={`text-xs w-14 flex-shrink-0 ${m.isCurrentMonth ? 'text-[#4f8ef7] font-bold' : 'text-gray-500'}`}>
+                                {m.label} {m.isCurrentMonth && '●'}
+                            </span>
+                            <div className="flex-1 h-1.5 bg-[#1e1e32] rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-500 ${m.isCurrentMonth ? 'bg-[#4f8ef7]' : isAboveAvg ? 'bg-[#f43f5e]' : 'bg-[#7c3aed]'
+                                        }`}
+                                    style={{ width: `${Math.min(pct, 100)}%` }}
+                                />
+                            </div>
+                            <span className={`text-xs font-semibold w-24 text-right flex-shrink-0 ${m.value === 0 ? 'text-gray-700' : m.isCurrentMonth ? 'text-[#4f8ef7]' : isAboveAvg ? 'text-[#f43f5e]' : 'text-white'
+                                }`}>
+                                {m.value === 0 ? '—' : formatCurrency(m.value)}
+                            </span>
+                            {isAboveAvg && <TrendingUp size={10} className="text-[#f43f5e] flex-shrink-0" />}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* legend */}
+            <div className="flex items-center gap-4 mt-3 text-[10px] text-gray-600">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4f8ef7] inline-block" />Mês atual</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#7c3aed] inline-block" />Normal</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#f43f5e] inline-block" />Acima da média</span>
+            </div>
+        </div>
+    );
+}
+
 export default function CreditCards() {
-    const { cards, purchases, addCard, deleteCard, addPurchase, deletePurchase, getInstallmentsForMonth } = useFinance();
+    const { cards, purchases, addCard, deleteCard, addPurchase, deletePurchase, getInstallmentsForMonth, getInstallmentsForCardAndMonth } = useFinance();
     const [showForm, setShowForm] = useState(false);
     const [addingFor, setAddingFor] = useState(null);
     const [expanded, setExpanded] = useState(null);
+    const [showBills, setShowBills] = useState(null);
     const now = new Date();
 
     return (
@@ -63,22 +169,36 @@ export default function CreditCards() {
                         const cardPurchases = purchases.filter(p => p.cardId === card.id);
                         const fatura = getInstallmentsForMonth(now.getFullYear(), now.getMonth() + 1);
                         const isExp = expanded === card.id;
+                        const isBills = showBills === card.id;
                         return (
                             <div key={card.id} className="card">
                                 <div className="flex items-start gap-4">
                                     <div className={`w-16 h-10 rounded-lg bg-gradient-to-br ${brandColors[card.brand] || brandColors.Outros} flex items-center justify-center flex-shrink-0`}><CreditCard size={18} className="text-white" /></div>
                                     <div className="flex-1">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
                                             <div><h3 className="text-white font-semibold">{card.name}</h3><p className="text-xs text-gray-500">{card.brand} • Vence dia {card.dueDay} • Fecha dia {card.closingDay}</p></div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3 flex-wrap">
                                                 <div className="text-right"><p className="text-xs text-gray-500">Fatura mês</p><p className="text-base font-bold text-[#a855f7]">{formatCurrency(fatura)}</p></div>
                                                 <div className="text-right"><p className="text-xs text-gray-500">Limite</p><p className="text-sm font-semibold text-white">{formatCurrency(card.limit)}</p></div>
+                                                <button
+                                                    onClick={() => setShowBills(isBills ? null : card.id)}
+                                                    className={`px-2 py-1 rounded-lg text-xs flex items-center gap-1 transition-colors ${isBills ? 'bg-[#4f8ef7]/20 text-[#4f8ef7]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                                >
+                                                    <CalendarDays size={12} />Faturas
+                                                </button>
                                                 <button onClick={() => setExpanded(isExp ? null : card.id)} className="p-2 text-gray-400 hover:text-white">{isExp ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
                                                 <button onClick={() => deleteCard(card.id)} className="p-2 text-[#f43f5e] hover:opacity-70"><Trash2 size={16} /></button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Seção de previsão de faturas */}
+                                {isBills && (
+                                    <BillsProjection card={card} getInstallmentsForCardAndMonth={getInstallmentsForCardAndMonth} />
+                                )}
+
+                                {/* Seção de compras parceladas */}
                                 {isExp && (
                                     <div className="mt-4 pt-4 border-t border-[#1e1e32]">
                                         <div className="flex items-center justify-between mb-3">

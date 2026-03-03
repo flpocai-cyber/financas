@@ -1,41 +1,68 @@
-import React, { createContext, useContext } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+    collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, setDoc, getDoc
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { generateId } from '../utils/formatters';
 
 const FinanceContext = createContext();
 export const useFinance = () => useContext(FinanceContext);
 
+// ID fixo do usuário (sem login por enquanto)
+const USER_ID = 'default-user';
+
+function useFirestoreCollection(collectionName) {
+    const [data, setData] = useState([]);
+
+    useEffect(() => {
+        const colRef = collection(db, 'users', USER_ID, collectionName);
+        const unsub = onSnapshot(colRef, (snap) => {
+            setData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+        return () => unsub();
+    }, [collectionName]);
+
+    const add = async (item) => {
+        const colRef = collection(db, 'users', USER_ID, collectionName);
+        await addDoc(colRef, item);
+    };
+
+    const update = async (id, data) => {
+        const docRef = doc(db, 'users', USER_ID, collectionName, id);
+        await updateDoc(docRef, data);
+    };
+
+    const remove = async (id) => {
+        const docRef = doc(db, 'users', USER_ID, collectionName, id);
+        await deleteDoc(docRef);
+    };
+
+    return [data, add, update, remove];
+}
+
 export const FinanceProvider = ({ children }) => {
-    const [cards, setCards] = useLocalStorage('fin_cards', []);
-    const [purchases, setPurchases] = useLocalStorage('fin_purchases', []);
-    const [expenses, setExpenses] = useLocalStorage('fin_expenses', []);
-    const [incomes, setIncomes] = useLocalStorage('fin_incomes', []);
-    const [accounts, setAccounts] = useLocalStorage('fin_accounts', []);
-    const [cryptos, setCryptos] = useLocalStorage('fin_cryptos', []);
+    const [cards, addCard_raw, updateCard, deleteCard_raw] = useFirestoreCollection('cards');
+    const [purchases, addPurchase_raw, updatePurchase, deletePurchase] = useFirestoreCollection('purchases');
+    const [expenses, addExpense_raw, updateExpense, deleteExpense] = useFirestoreCollection('expenses');
+    const [incomes, addIncome_raw, updateIncome, deleteIncome] = useFirestoreCollection('incomes');
+    const [accounts, addAccount_raw, updateAccount, deleteAccount] = useFirestoreCollection('accounts');
+    const [cryptos, addCrypto_raw, updateCrypto, deleteCrypto] = useFirestoreCollection('cryptos');
 
-    const addCard = (card) => setCards(prev => [...prev, { ...card, id: generateId() }]);
-    const updateCard = (id, data) => setCards(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-    const deleteCard = (id) => { setCards(prev => prev.filter(c => c.id !== id)); setPurchases(prev => prev.filter(p => p.cardId !== id)); };
+    const addCard = (card) => addCard_raw(card);
+    const addPurchase = (purchase) => addPurchase_raw(purchase);
+    const addExpense = (expense) => addExpense_raw(expense);
+    const addIncome = (income) => addIncome_raw(income);
+    const addAccount = (account) => addAccount_raw(account);
+    const addCrypto = (crypto) => addCrypto_raw(crypto);
 
-    const addPurchase = (purchase) => setPurchases(prev => [...prev, { ...purchase, id: generateId() }]);
-    const updatePurchase = (id, data) => setPurchases(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-    const deletePurchase = (id) => setPurchases(prev => prev.filter(p => p.id !== id));
-
-    const addExpense = (expense) => setExpenses(prev => [...prev, { ...expense, id: generateId() }]);
-    const updateExpense = (id, data) => setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
-    const deleteExpense = (id) => setExpenses(prev => prev.filter(e => e.id !== id));
-
-    const addIncome = (income) => setIncomes(prev => [...prev, { ...income, id: generateId() }]);
-    const updateIncome = (id, data) => setIncomes(prev => prev.map(i => i.id === id ? { ...i, ...data } : i));
-    const deleteIncome = (id) => setIncomes(prev => prev.filter(i => i.id !== id));
-
-    const addAccount = (account) => setAccounts(prev => [...prev, { ...account, id: generateId() }]);
-    const updateAccount = (id, data) => setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
-    const deleteAccount = (id) => setAccounts(prev => prev.filter(a => a.id !== id));
-
-    const addCrypto = (crypto) => setCryptos(prev => [...prev, { ...crypto, id: generateId() }]);
-    const updateCrypto = (id, data) => setCryptos(prev => prev.map(c => c.id === id ? { ...c, ...data } : c));
-    const deleteCrypto = (id) => setCryptos(prev => prev.filter(c => c.id !== id));
+    const deleteCard = async (id) => {
+        await deleteCard_raw(id);
+        // Remove purchases associated with this card
+        const cardPurchases = purchases.filter(p => p.cardId === id);
+        for (const p of cardPurchases) {
+            await deletePurchase(p.id);
+        }
+    };
 
     const totalBankBalance = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
     const monthlyFixedIncome = incomes.filter(i => i.type === 'fixed').reduce((sum, i) => sum + Number(i.amount || 0), 0);
@@ -49,6 +76,18 @@ export const FinanceProvider = ({ children }) => {
             if (target >= start && target <= end) sum += Number(p.amount) / Number(p.installments);
             return sum;
         }, 0);
+    };
+
+    const getInstallmentsForCardAndMonth = (cardId, year, month) => {
+        return purchases
+            .filter(p => p.cardId === cardId)
+            .reduce((sum, p) => {
+                const start = new Date(p.startDate + '-01');
+                const end = new Date(start.getFullYear(), start.getMonth() + Number(p.installments), 0);
+                const target = new Date(year, month - 1, 1);
+                if (target >= start && target <= end) sum += Number(p.amount) / Number(p.installments);
+                return sum;
+            }, 0);
     };
 
     const now = new Date();
@@ -92,7 +131,7 @@ export const FinanceProvider = ({ children }) => {
             addAccount, updateAccount, deleteAccount,
             addCrypto, updateCrypto, deleteCrypto,
             totalBankBalance, monthlyFixedIncome, monthlyFixedExpenses,
-            currentMonthInstallments, getInstallmentsForMonth,
+            currentMonthInstallments, getInstallmentsForMonth, getInstallmentsForCardAndMonth,
             get12MonthProjection, getExpensesByCategory,
         }}>
             {children}
