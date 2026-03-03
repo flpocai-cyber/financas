@@ -208,6 +208,12 @@ export default function CreditCards() {
                                                 >
                                                     <CalendarDays size={12} />Faturas
                                                 </button>
+                                                <button
+                                                    onClick={() => { setAddingFor(addingFor === card.id ? null : card.id); setExpanded(card.id); }}
+                                                    className={`px-2 py-1 rounded-lg text-xs flex items-center gap-1 transition-colors ${addingFor === card.id ? 'bg-[#7c3aed]/20 text-[#a855f7]' : 'text-[#7c3aed] hover:text-[#a855f7] hover:bg-white/5'}`}
+                                                >
+                                                    <Plus size={12} />Adicionar Compra
+                                                </button>
                                                 <button onClick={() => setExpanded(isExp ? null : card.id)} className="p-2 text-gray-400 hover:text-white">{isExp ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
                                                 <button onClick={() => deleteCard(card.id)} className="p-2 text-[#f43f5e] hover:opacity-70"><Trash2 size={16} /></button>
                                             </div>
@@ -225,7 +231,6 @@ export default function CreditCards() {
                                     <div className="mt-4 pt-4 border-t border-[#1e1e32]">
                                         <div className="flex items-center justify-between mb-3">
                                             <h4 className="text-sm font-medium text-gray-300">Compras Parceladas ({cardPurchases.length})</h4>
-                                            <button className="text-xs text-[#7c3aed] hover:text-[#a855f7] flex items-center gap-1" onClick={() => setAddingFor(addingFor === card.id ? null : card.id)}><Plus size={12} />Adicionar</button>
                                         </div>
                                         {addingFor === card.id && <PurchaseForm cardId={card.id} onSave={(p) => { addPurchase(p); setAddingFor(null); }} onCancel={() => setAddingFor(null)} />}
                                         {cardPurchases.length === 0 ? <p className="text-center text-gray-600 text-sm py-4">Nenhuma compra parcelada</p> : (
