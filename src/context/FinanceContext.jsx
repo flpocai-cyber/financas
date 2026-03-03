@@ -11,6 +11,23 @@ export const useFinance = () => useContext(FinanceContext);
 // ID fixo do usuário (sem login por enquanto)
 const USER_ID = 'default-user';
 
+const getWeekdaysInMonth = (year, month, dayOfWeekName) => {
+    const daysMap = {
+        'Domingo': 0, 'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3,
+        'Quinta-feira': 4, 'Sexta-feira': 5, 'Sábado': 6
+    };
+    const targetDay = daysMap[dayOfWeekName];
+    if (targetDay === undefined) return 4.33; // fallback se não tiver
+
+    let count = 0;
+    const date = new Date(year, month - 1, 1);
+    while (date.getMonth() === month - 1) {
+        if (date.getDay() === targetDay) count++;
+        date.setDate(date.getDate() + 1);
+    }
+    return count;
+};
+
 function useFirestoreCollection(collectionName) {
     const [data, setData] = useState([]);
 
@@ -67,9 +84,13 @@ export const FinanceProvider = ({ children }) => {
     };
 
     const totalBankBalance = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
+    const now = new Date();
     const monthlyFixedIncome = incomes.reduce((sum, i) => {
         if (i.type === 'fixed') return sum + Number(i.amount || 0);
-        if (i.type === 'weekly') return sum + (Number(i.amount || 0) * 4.33);
+        if (i.type === 'weekly') {
+            const count = getWeekdaysInMonth(now.getFullYear(), now.getMonth() + 1, i.dayOfWeek);
+            return sum + (Number(i.amount || 0) * count);
+        }
         return sum;
     }, 0);
     const monthlyFixedExpenses = expenses.filter(e => e.recurrence === 'monthly').reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -96,7 +117,28 @@ export const FinanceProvider = ({ children }) => {
             }, 0);
     };
 
-    const now = new Date();
+    const getInstallmentsBreakdownForMonth = (cardId, year, month) => {
+        return purchases
+            .filter(p => p.cardId === cardId)
+            .reduce((breakdown, p) => {
+                const start = new Date(p.startDate + '-01');
+                const end = new Date(start.getFullYear(), start.getMonth() + Number(p.installments), 0);
+                const target = new Date(year, month - 1, 1);
+                if (target >= start && target <= end) {
+                    const startYear = start.getFullYear();
+                    const startMonth = start.getMonth();
+                    const monthsPassed = (year - startYear) * 12 + (month - 1 - startMonth);
+                    const currentInstallment = monthsPassed + 1;
+                    breakdown.push({
+                        ...p,
+                        currentInstallment,
+                        installmentValue: Number(p.amount) / Number(p.installments)
+                    });
+                }
+                return breakdown;
+            }, []);
+    };
+
     const currentMonthInstallments = getInstallmentsForMonth(now.getFullYear(), now.getMonth() + 1);
 
     const get12MonthProjection = () => {
@@ -107,7 +149,10 @@ export const FinanceProvider = ({ children }) => {
             const y = d.getFullYear(), m = d.getMonth() + 1;
             const fixedInc = incomes.reduce((s, inc) => {
                 if (inc.type === 'fixed') return s + Number(inc.amount || 0);
-                if (inc.type === 'weekly') return s + (Number(inc.amount || 0) * 4.33);
+                if (inc.type === 'weekly') {
+                    const count = getWeekdaysInMonth(y, m, inc.dayOfWeek);
+                    return s + (Number(inc.amount || 0) * count);
+                }
                 return s;
             }, 0);
             const variableInc = incomes.filter(inc => inc.type === 'variable' || inc.type === 'once').filter(inc => { const id = new Date(inc.date); return id.getFullYear() === y && id.getMonth() + 1 === m; }).reduce((s, inc) => s + Number(inc.amount || 0), 0);
@@ -142,7 +187,7 @@ export const FinanceProvider = ({ children }) => {
             addCrypto, updateCrypto, deleteCrypto,
             addPlan, updatePlan, deletePlan,
             totalBankBalance, monthlyFixedIncome, monthlyFixedExpenses,
-            currentMonthInstallments, getInstallmentsForMonth, getInstallmentsForCardAndMonth,
+            currentMonthInstallments, getInstallmentsForMonth, getInstallmentsForCardAndMonth, getInstallmentsBreakdownForMonth,
             get12MonthProjection, getExpensesByCategory,
         }}>
             {children}

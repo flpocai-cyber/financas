@@ -48,13 +48,16 @@ function PurchaseForm({ cardId, onSave, onCancel }) {
     );
 }
 
-function BillsProjection({ card, getInstallmentsForCardAndMonth }) {
+function BillsProjection({ card, getInstallmentsForCardAndMonth, getInstallmentsBreakdownForMonth }) {
+    const [expandedMonth, setExpandedMonth] = useState(null);
     const now = new Date();
     const months = [];
     for (let i = 0; i < 12; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const value = getInstallmentsForCardAndMonth(card.id, d.getFullYear(), d.getMonth() + 1);
         months.push({
+            year: d.getFullYear(),
+            month: d.getMonth() + 1,
             label: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
             fullLabel: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
             value,
@@ -88,10 +91,10 @@ function BillsProjection({ card, getInstallmentsForCardAndMonth }) {
                         <div key={i} className="flex flex-col items-center gap-1 h-full justify-end" title={`${m.fullLabel}: ${formatCurrency(m.value)}`}>
                             <div
                                 className={`w-full rounded-t-sm transition-all duration-500 ${m.isCurrentMonth
-                                        ? 'bg-[#4f8ef7]'
-                                        : isAboveAvg
-                                            ? 'bg-[#f43f5e]/70'
-                                            : 'bg-[#7c3aed]/60'
+                                    ? 'bg-[#4f8ef7]'
+                                    : isAboveAvg
+                                        ? 'bg-[#f43f5e]/70'
+                                        : 'bg-[#7c3aed]/60'
                                     }`}
                                 style={{ height: `${Math.max(pct, m.value > 0 ? 8 : 2)}%` }}
                             />
@@ -114,23 +117,42 @@ function BillsProjection({ card, getInstallmentsForCardAndMonth }) {
                 {months.map((m, i) => {
                     const pct = Number(card.limit) > 0 ? (m.value / Number(card.limit)) * 100 : 0;
                     const isAboveAvg = m.value > average && m.value > 0;
+                    const isExpanded = expandedMonth === i;
+                    const breakdown = isExpanded ? getInstallmentsBreakdownForMonth(card.id, m.year, m.month) : [];
+
                     return (
-                        <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${m.isCurrentMonth ? 'bg-[#4f8ef7]/10 border border-[#4f8ef7]/20' : 'bg-[#0f0f1a]'}`}>
-                            <span className={`text-xs w-14 flex-shrink-0 ${m.isCurrentMonth ? 'text-[#4f8ef7] font-bold' : 'text-gray-500'}`}>
-                                {m.label} {m.isCurrentMonth && '●'}
-                            </span>
-                            <div className="flex-1 h-1.5 bg-[#1e1e32] rounded-full overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full transition-all duration-500 ${m.isCurrentMonth ? 'bg-[#4f8ef7]' : isAboveAvg ? 'bg-[#f43f5e]' : 'bg-[#7c3aed]'
-                                        }`}
-                                    style={{ width: `${Math.min(pct, 100)}%` }}
-                                />
-                            </div>
-                            <span className={`text-xs font-semibold w-24 text-right flex-shrink-0 ${m.value === 0 ? 'text-gray-700' : m.isCurrentMonth ? 'text-[#4f8ef7]' : isAboveAvg ? 'text-[#f43f5e]' : 'text-white'
-                                }`}>
-                                {m.value === 0 ? '—' : formatCurrency(m.value)}
-                            </span>
-                            {isAboveAvg && <TrendingUp size={10} className="text-[#f43f5e] flex-shrink-0" />}
+                        <div key={i} className="flex flex-col gap-1">
+                            <button onClick={() => setExpandedMonth(isExpanded ? null : i)} className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer w-full ${m.isCurrentMonth ? 'bg-[#4f8ef7]/10 border border-[#4f8ef7]/20 hover:bg-[#4f8ef7]/20' : 'bg-[#0f0f1a] border border-transparent hover:border-[#1e1e32]'}`}>
+                                <span className={`text-xs w-14 flex-shrink-0 text-left ${m.isCurrentMonth ? 'text-[#4f8ef7] font-bold' : 'text-gray-500'}`}>
+                                    {m.label} {m.isCurrentMonth && '●'}
+                                </span>
+                                <div className="flex-1 h-1.5 bg-[#1e1e32] rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${m.isCurrentMonth ? 'bg-[#4f8ef7]' : isAboveAvg ? 'bg-[#f43f5e]' : 'bg-[#7c3aed]'}`}
+                                        style={{ width: `${Math.min(pct, 100)}%` }}
+                                    />
+                                </div>
+                                <span className={`text-xs font-semibold w-24 text-right flex-shrink-0 ${m.value === 0 ? 'text-gray-700' : m.isCurrentMonth ? 'text-[#4f8ef7]' : isAboveAvg ? 'text-[#f43f5e]' : 'text-white'}`}>
+                                    {m.value === 0 ? '—' : formatCurrency(m.value)}
+                                </span>
+                                {isAboveAvg ? <TrendingUp size={10} className="text-[#f43f5e] flex-shrink-0" /> : <ChevronDown size={10} className={`text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />}
+                            </button>
+                            {isExpanded && breakdown.length > 0 && (
+                                <div className="bg-[#1a1a2e] rounded-lg p-3 mx-2 space-y-2 border border-[#1e1e32] animate-fade-in">
+                                    <p className="text-xs text-gray-400 font-medium pb-1 border-b border-[#1e1e32]/50">Detalhamento da Fatura</p>
+                                    {breakdown.map(item => (
+                                        <div key={item.id} className="flex justify-between items-center text-xs">
+                                            <span className="text-gray-300">{item.description} <span className="text-gray-500 text-[10px] ml-1">(Parcela {item.currentInstallment}/{item.installments})</span></span>
+                                            <span className="text-white font-medium">{formatCurrency(item.installmentValue)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {isExpanded && breakdown.length === 0 && (
+                                <div className="bg-[#1a1a2e] rounded-lg p-3 mx-2 border border-[#1e1e32] animate-fade-in">
+                                    <p className="text-xs text-gray-500 text-center">Nenhuma compra listada para esta fatura.</p>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -147,7 +169,7 @@ function BillsProjection({ card, getInstallmentsForCardAndMonth }) {
 }
 
 export default function CreditCards() {
-    const { cards, purchases, addCard, deleteCard, addPurchase, deletePurchase, getInstallmentsForMonth, getInstallmentsForCardAndMonth } = useFinance();
+    const { cards, purchases, addCard, deleteCard, addPurchase, deletePurchase, getInstallmentsForMonth, getInstallmentsForCardAndMonth, getInstallmentsBreakdownForMonth } = useFinance();
     const [showForm, setShowForm] = useState(false);
     const [addingFor, setAddingFor] = useState(null);
     const [expanded, setExpanded] = useState(null);
@@ -195,7 +217,7 @@ export default function CreditCards() {
 
                                 {/* Seção de previsão de faturas */}
                                 {isBills && (
-                                    <BillsProjection card={card} getInstallmentsForCardAndMonth={getInstallmentsForCardAndMonth} />
+                                    <BillsProjection card={card} getInstallmentsForCardAndMonth={getInstallmentsForCardAndMonth} getInstallmentsBreakdownForMonth={getInstallmentsBreakdownForMonth} />
                                 )}
 
                                 {/* Seção de compras parceladas */}
