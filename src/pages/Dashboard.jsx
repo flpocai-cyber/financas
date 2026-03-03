@@ -104,6 +104,7 @@ export default function Dashboard() {
                                 <defs>
                                     <linearGradient id="ig" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00d4aa" stopOpacity={0.2} /><stop offset="95%" stopColor="#00d4aa" stopOpacity={0} /></linearGradient>
                                     <linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} /><stop offset="95%" stopColor="#f43f5e" stopOpacity={0} /></linearGradient>
+                                    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} /><stop offset="95%" stopColor="#f59e0b" stopOpacity={0} /></linearGradient>
                                     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f8ef7" stopOpacity={0.3} /><stop offset="95%" stopColor="#4f8ef7" stopOpacity={0} /></linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#1e1e32" />
@@ -112,7 +113,8 @@ export default function Dashboard() {
                                 <Tooltip content={<CustomTooltip />} />
                                 <Legend wrapperStyle={{ fontSize: '12px', color: '#6b7280' }} />
                                 <Area type="monotone" dataKey="income" name="Recebimentos" stroke="#00d4aa" fill="url(#ig)" strokeWidth={2} dot={false} />
-                                <Area type="monotone" dataKey="expenses" name="Gastos" stroke="#f43f5e" fill="url(#eg)" strokeWidth={2} dot={false} />
+                                <Area type="monotone" dataKey="expenses" name="Gastos Normais" stroke="#f43f5e" fill="url(#eg)" strokeWidth={2} dot={false} />
+                                <Area type="monotone" dataKey="plannedExpenses" name="Gastos + Projetos" stroke="#f59e0b" fill="url(#pg)" strokeWidth={2} dot={false} />
                                 <Area type="monotone" dataKey="balance" name="Saldo" stroke="#4f8ef7" fill="url(#bg)" strokeWidth={2} dot={false} />
                             </AreaChart>
                         </ResponsiveContainer>

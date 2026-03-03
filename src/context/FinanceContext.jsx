@@ -147,6 +147,8 @@ export const FinanceProvider = ({ children }) => {
         for (let i = 0; i < 12; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const y = d.getFullYear(), m = d.getMonth() + 1;
+
+            // Calculo da renda e gastos normais
             const fixedInc = incomes.reduce((s, inc) => {
                 if (inc.type === 'fixed') return s + Number(inc.amount || 0);
                 if (inc.type === 'weekly') {
@@ -162,9 +164,30 @@ export const FinanceProvider = ({ children }) => {
             const onceExp = expenses.filter(e => e.recurrence === 'once').filter(e => { const ed = new Date(e.date); return ed.getFullYear() === y && ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
             const cardExp = getInstallmentsForMonth(y, m);
             const totalExp = fixedExp + yearlyExp + onceExp + cardExp;
+
+            // Calculo dos gastos provenientes apenas dos planos de simulacao
+            const plannedExpenses = plans.reduce((s, p) => {
+                if (!p || !p.startMonth) return s;
+                const start = new Date(p.startMonth + '-01');
+                const end = new Date(start.getFullYear(), start.getMonth() + Number(p.installments || 1), 0);
+                const target = new Date(y, m - 1, 1);
+                if (target >= start && target <= end) {
+                    s += (Number(p.amount || 0) / Number(p.installments || 1));
+                }
+                return s;
+            }, 0);
+
             const net = totalInc - totalExp;
             runningBalance += net;
-            projection.push({ month: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), income: totalInc, expenses: totalExp, net, balance: runningBalance });
+
+            projection.push({
+                month: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+                income: totalInc,
+                expenses: totalExp,
+                plannedExpenses: plannedExpenses,
+                net,
+                balance: runningBalance
+            });
         }
         return projection;
     };

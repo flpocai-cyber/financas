@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency } from '../utils/formatters';
-import { Target, Plus, Trash2, CalendarDays, ArrowRight, TrendingUp } from 'lucide-react';
+import { Target, Plus, Trash2, CalendarDays, ArrowRight, TrendingUp, Edit2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-function PlanForm({ onSave, onCancel }) {
-    const [form, setForm] = useState({ title: '', amount: '', installments: '12', startMonth: new Date().toISOString().slice(0, 7) });
+function PlanForm({ initial, onSave, onCancel }) {
+    const [form, setForm] = useState(initial || { title: '', amount: '', installments: '12', startMonth: new Date().toISOString().slice(0, 7) });
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
     return (
         <form onSubmit={(e) => { e.preventDefault(); onSave(form); }} className="card mb-4 border-[#4f8ef7]/30 animate-fade-in">
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Target size={16} className="text-[#4f8ef7]" />Novo Planejamento</h3>
+            <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Target size={16} className="text-[#4f8ef7]" />{initial ? 'Editar Projeto' : 'Novo Planejamento'}</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="col-span-2"><label className="label">O que você planeja fazer?</label><input className="input" placeholder="Ex: Pintura da Casa, Trocar de Carro" value={form.title} onChange={e => set('title', e.target.value)} required /></div>
-                <div><label className="label">Valor Total (R$)</label><input className="input" type="number" placeholder="5000" value={form.amount} onChange={e => set('amount', e.target.value)} required /></div>
+                <div><label className="label">Valor Total (R$)</label><input className="input" type="number" step="0.01" placeholder="5000" value={form.amount} onChange={e => set('amount', e.target.value)} required /></div>
                 <div><label className="label">Em quantas vezes?</label><input className="input" type="number" min="1" max="48" value={form.installments} onChange={e => set('installments', e.target.value)} required /></div>
                 <div className="col-span-2"><label className="label">Mês de Início</label><input className="input" type="month" value={form.startMonth} onChange={e => set('startMonth', e.target.value)} required /></div>
             </div>
-            <div className="flex gap-3 mt-4"><button type="submit" className="btn-primary">Adicionar Simulação</button><button type="button" onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button></div>
+            <div className="flex gap-3 mt-4"><button type="submit" className="btn-primary">{initial ? 'Salvar Alterações' : 'Adicionar Simulação'}</button><button type="button" onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button></div>
         </form>
     );
 }
@@ -35,8 +35,9 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Planning() {
-    const { plans, addPlan, deletePlan, get12MonthProjection } = useFinance();
+    const { plans, addPlan, updatePlan, deletePlan, get12MonthProjection } = useFinance();
     const [showForm, setShowForm] = useState(false);
+    const [editingPlan, setEditingPlan] = useState(null);
 
     // Obtém a projeção atual como base (sem os planos)
     const baseProjection = get12MonthProjection();
@@ -100,10 +101,21 @@ export default function Planning() {
                     <h1 className="text-2xl font-bold text-white">Planejamento Financeiro</h1>
                     <p className="text-gray-500 text-sm mt-0.5">Simule compras futuras e veja o impacto no seu saldo em 12 meses</p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowForm(true)}><Plus size={16} />Nova Simulação</button>
+                <button className="btn-primary" onClick={() => { setEditingPlan(null); setShowForm(true); }}><Plus size={16} />Nova Simulação</button>
             </div>
 
-            {showForm && <PlanForm onSave={(plan) => { addPlan(plan); setShowForm(false); }} onCancel={() => setShowForm(false)} />}
+            {showForm && (
+                <PlanForm
+                    initial={editingPlan}
+                    onSave={(plan) => {
+                        if (editingPlan) updatePlan(editingPlan.id, plan);
+                        else addPlan(plan);
+                        setShowForm(false);
+                        setEditingPlan(null);
+                    }}
+                    onCancel={() => { setShowForm(false); setEditingPlan(null); }}
+                />
+            )}
 
             {/* Gráfico de Impacto Simulado */}
             <div className="card">
@@ -160,6 +172,9 @@ export default function Planning() {
                                             <p className="text-xs text-gray-500">Valor Total</p>
                                             <p className="text-white font-semibold">{formatCurrency(plan.amount)}</p>
                                         </div>
+                                        <button onClick={() => { setEditingPlan(plan); setShowForm(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 text-[#4f8ef7] hover:bg-[#4f8ef7]/10 rounded-lg transition-colors">
+                                            <Edit2 size={16} />
+                                        </button>
                                         <button onClick={() => deletePlan(plan.id)} className="p-2 text-[#f43f5e] hover:bg-[#f43f5e]/10 rounded-lg transition-colors">
                                             <Trash2 size={16} />
                                         </button>
