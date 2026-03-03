@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Receipt, TrendingUp, Building2, Bitcoin, BarChart3, ChevronLeft, ChevronRight, Wallet } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Receipt, TrendingUp, Building2, Bitcoin, BarChart3, ChevronLeft, ChevronRight, Wallet, Target } from 'lucide-react';
 
 const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -9,6 +9,7 @@ const navItems = [
     { to: '/recebimentos', icon: TrendingUp, label: 'Recebimentos' },
     { to: '/contas', icon: Building2, label: 'Contas' },
     { to: '/cripto', icon: Bitcoin, label: 'Cripto' },
+    { to: '/planejamento', icon: Target, label: 'Planejamento' },
     { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
 ];
 

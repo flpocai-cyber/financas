@@ -9,6 +9,7 @@ import Income from './pages/Income';
 import BankAccounts from './pages/BankAccounts';
 import Crypto from './pages/Crypto';
 import Reports from './pages/Reports';
+import Planning from './pages/Planning';
 
 export default function App() {
     return (
@@ -22,6 +23,7 @@ export default function App() {
                         <Route path="recebimentos" element={<Income />} />
                         <Route path="contas" element={<BankAccounts />} />
                         <Route path="cripto" element={<Crypto />} />
+                        <Route path="planejamento" element={<Planning />} />
                         <Route path="relatorios" element={<Reports />} />
                     </Route>
                 </Routes>

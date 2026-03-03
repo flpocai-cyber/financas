@@ -47,6 +47,7 @@ export const FinanceProvider = ({ children }) => {
     const [incomes, addIncome_raw, updateIncome, deleteIncome] = useFirestoreCollection('incomes');
     const [accounts, addAccount_raw, updateAccount, deleteAccount] = useFirestoreCollection('accounts');
     const [cryptos, addCrypto_raw, updateCrypto, deleteCrypto] = useFirestoreCollection('cryptos');
+    const [plans, addPlan_raw, updatePlan, deletePlan] = useFirestoreCollection('plans');
 
     const addCard = (card) => addCard_raw(card);
     const addPurchase = (purchase) => addPurchase_raw(purchase);
@@ -54,6 +55,7 @@ export const FinanceProvider = ({ children }) => {
     const addIncome = (income) => addIncome_raw(income);
     const addAccount = (account) => addAccount_raw(account);
     const addCrypto = (crypto) => addCrypto_raw(crypto);
+    const addPlan = (plan) => addPlan_raw(plan);
 
     const deleteCard = async (id) => {
         await deleteCard_raw(id);
@@ -65,7 +67,11 @@ export const FinanceProvider = ({ children }) => {
     };
 
     const totalBankBalance = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
-    const monthlyFixedIncome = incomes.filter(i => i.type === 'fixed').reduce((sum, i) => sum + Number(i.amount || 0), 0);
+    const monthlyFixedIncome = incomes.reduce((sum, i) => {
+        if (i.type === 'fixed') return sum + Number(i.amount || 0);
+        if (i.type === 'weekly') return sum + (Number(i.amount || 0) * 4.33);
+        return sum;
+    }, 0);
     const monthlyFixedExpenses = expenses.filter(e => e.recurrence === 'monthly').reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
     const getInstallmentsForMonth = (year, month) => {
@@ -99,8 +105,12 @@ export const FinanceProvider = ({ children }) => {
         for (let i = 0; i < 12; i++) {
             const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
             const y = d.getFullYear(), m = d.getMonth() + 1;
-            const fixedInc = incomes.filter(inc => inc.type === 'fixed').reduce((s, inc) => s + Number(inc.amount || 0), 0);
-            const variableInc = incomes.filter(inc => inc.type !== 'fixed').filter(inc => { const id = new Date(inc.date); return id.getFullYear() === y && id.getMonth() + 1 === m; }).reduce((s, inc) => s + Number(inc.amount || 0), 0);
+            const fixedInc = incomes.reduce((s, inc) => {
+                if (inc.type === 'fixed') return s + Number(inc.amount || 0);
+                if (inc.type === 'weekly') return s + (Number(inc.amount || 0) * 4.33);
+                return s;
+            }, 0);
+            const variableInc = incomes.filter(inc => inc.type === 'variable' || inc.type === 'once').filter(inc => { const id = new Date(inc.date); return id.getFullYear() === y && id.getMonth() + 1 === m; }).reduce((s, inc) => s + Number(inc.amount || 0), 0);
             const totalInc = fixedInc + variableInc;
             const fixedExp = expenses.filter(e => e.recurrence === 'monthly').reduce((s, e) => s + Number(e.amount || 0), 0);
             const yearlyExp = expenses.filter(e => e.recurrence === 'yearly').filter(e => { const ed = new Date(e.date); return ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
@@ -123,13 +133,14 @@ export const FinanceProvider = ({ children }) => {
 
     return (
         <FinanceContext.Provider value={{
-            cards, purchases, expenses, incomes, accounts, cryptos,
+            cards, purchases, expenses, incomes, accounts, cryptos, plans,
             addCard, updateCard, deleteCard,
             addPurchase, updatePurchase, deletePurchase,
             addExpense, updateExpense, deleteExpense,
             addIncome, updateIncome, deleteIncome,
             addAccount, updateAccount, deleteAccount,
             addCrypto, updateCrypto, deleteCrypto,
+            addPlan, updatePlan, deletePlan,
             totalBankBalance, monthlyFixedIncome, monthlyFixedExpenses,
             currentMonthInstallments, getInstallmentsForMonth, getInstallmentsForCardAndMonth,
             get12MonthProjection, getExpensesByCategory,
