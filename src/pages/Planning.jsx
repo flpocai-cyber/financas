@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { formatCurrency } from '../utils/formatters';
-import { Target, Plus, Trash2, CalendarDays, ArrowRight } from 'lucide-react';
+import { Target, Plus, Trash2, CalendarDays, ArrowRight, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 function PlanForm({ onSave, onCancel }) {
@@ -42,6 +42,9 @@ export default function Planning() {
     const baseProjection = get12MonthProjection();
     const now = new Date();
 
+    const safePlans = plans || [];
+    const safeBaseProjection = baseProjection || [];
+
     // Calcula as despesas mensais extras baseadas nos planos cadastrados
     const planMonthlyCosts = {};
     for (let i = 0; i < 12; i++) {
@@ -49,38 +52,42 @@ export default function Planning() {
         const y = d.getFullYear(), m = d.getMonth() + 1;
         const key = `${y}-${m.toString().padStart(2, '0')}`;
 
-        planMonthlyCosts[key] = plans.reduce((sum, p) => {
-            const start = new Date(p.startMonth + '-01');
-            const end = new Date(start.getFullYear(), start.getMonth() + Number(p.installments), 0);
-            const target = new Date(y, m - 1, 1);
-            if (target >= start && target <= end) {
-                sum += Number(p.amount) / Number(p.installments);
+        planMonthlyCosts[key] = safePlans.reduce((sum, p) => {
+            if (!p || !p.startMonth) return sum;
+            try {
+                const start = new Date(p.startMonth + '-01');
+                const end = new Date(start.getFullYear(), start.getMonth() + Number(p.installments || 1), 0);
+                const target = new Date(y, m - 1, 1);
+                if (target >= start && target <= end) {
+                    sum += (Number(p.amount || 0) / Number(p.installments || 1));
+                }
+            } catch (err) {
+                console.error("Erro plano", err);
             }
             return sum;
         }, 0);
     }
 
     // Cria a projeção simulada mesclando os planos com a projeção base
-    let simulatedBalance = baseProjection.length > 0 && typeof baseProjection[0].balance !== 'undefined'
-        ? baseProjection[0].balance - baseProjection[0].net // recupera saldo inicial antes do mes 1
-        : 0;
+    let simulatedBalance = 0;
+    if (safeBaseProjection.length > 0 && safeBaseProjection[0] && typeof safeBaseProjection[0].balance !== 'undefined') {
+        simulatedBalance = safeBaseProjection[0].balance - (safeBaseProjection[0].net || 0);
+    }
 
-    const simulatedProjection = baseProjection.map(p => {
-        // Encontra o mes em formato YYYY-MM para bater com o planMonthlyCosts
-        // O label em p.month é 'jan. de 26' (ou similar), vamos reconstruir o date iterativo por índice
-        const idx = baseProjection.indexOf(p);
+    const simulatedProjection = safeBaseProjection.map((p, idx) => {
+        if (!p) return { month: '', "Saldo Atual": 0, "Saldo Simulado": 0, "Despesas Extras (Planos)": 0 };
         const d = new Date(now.getFullYear(), now.getMonth() + idx, 1);
         const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
 
         const extraExpense = planMonthlyCosts[key] || 0;
-        const totalSimulatedExpenses = p.expenses + extraExpense;
-        const simulatedNet = p.income - totalSimulatedExpenses;
+        const totalSimulatedExpenses = (p.expenses || 0) + extraExpense;
+        const simulatedNet = (p.income || 0) - totalSimulatedExpenses;
 
         simulatedBalance += simulatedNet;
 
         return {
-            month: p.month,
-            "Saldo Atual": p.balance,
+            month: p.month || '',
+            "Saldo Atual": p.balance || 0,
             "Saldo Simulado": simulatedBalance,
             "Despesas Extras (Planos)": extraExpense,
         };
@@ -103,7 +110,7 @@ export default function Planning() {
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                     <TrendingUp size={16} className="text-[#4f8ef7]" /> Simulador de Saldo (Real vs Planejado)
                 </h3>
-                {baseProjection.length > 0 ? (
+                {safeBaseProjection.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={simulatedProjection} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                             <defs>
@@ -127,11 +134,11 @@ export default function Planning() {
             {/* Lista de Projetos Simulados */}
             <div className="card">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Target size={16} className="text-[#f59e0b]" />Meus Projetos / Sonhos</h3>
-                {plans.length === 0 ? (
+                {safePlans.length === 0 ? (
                     <div className="py-8 text-center"><p className="text-gray-500">Nenhum projeto planejado ainda.</p></div>
                 ) : (
                     <div className="space-y-3">
-                        {plans.map(plan => {
+                        {safePlans.map(plan => {
                             const monthlyAmount = Number(plan.amount) / Number(plan.installments);
                             return (
                                 <div key={plan.id} className="flex items-center justify-between bg-[#1a1a2e] border border-[#1e1e32] p-4 rounded-xl">

@@ -11,6 +11,7 @@ import Crypto from './pages/Crypto';
 import Reports from './pages/Reports';
 import Planning from './pages/Planning';
 
+
 export default function App() {
     return (
         <FinanceProvider>
