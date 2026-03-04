@@ -17,14 +17,14 @@ function CardForm({ onSave, onCancel }) {
     const [form, setForm] = useState({ name: '', brand: 'Visa', limit: '', dueDay: '', closingDay: '' });
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
     return (
-        <form onSubmit={(e) => { e.preventDefault(); if (!form.name || !form.limit) return; onSave(form); }} className="card mb-4 border-[#4f8ef7]/30 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); if (!form.name || !form.limit || !form.dueDay || !form.closingDay) return; onSave(form); }} className="card mb-4 border-[#4f8ef7]/30 animate-fade-in">
             <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><CreditCard size={16} className="text-[#4f8ef7]" />Novo Cartão</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="col-span-2 md:col-span-1"><label className="label">Nome</label><input className="input" placeholder="Nubank" value={form.name} onChange={e => set('name', e.target.value)} required /></div>
                 <div><label className="label">Bandeira</label><select className="input" value={form.brand} onChange={e => set('brand', e.target.value)}>{BRANDS.map(b => <option key={b}>{b}</option>)}</select></div>
                 <div><label className="label">Limite (R$)</label><input className="input" type="number" placeholder="5000" value={form.limit} onChange={e => set('limit', e.target.value)} required /></div>
-                <div><label className="label">Dia Vencimento</label><input className="input" type="number" min="1" max="31" placeholder="10" value={form.dueDay} onChange={e => set('dueDay', e.target.value)} /></div>
-                <div><label className="label">Dia Fechamento</label><input className="input" type="number" min="1" max="31" placeholder="3" value={form.closingDay} onChange={e => set('closingDay', e.target.value)} /></div>
+                <div><label className="label">Dia Fechamento</label><input className="input" type="number" min="1" max="31" placeholder="3" value={form.closingDay} onChange={e => set('closingDay', e.target.value)} required /></div>
+                <div><label className="label">Dia Vencimento</label><input className="input" type="number" min="1" max="31" placeholder="10" value={form.dueDay} onChange={e => set('dueDay', e.target.value)} required /></div>
             </div>
             <div className="flex gap-3 mt-4"><button type="submit" className="btn-primary">Salvar</button><button type="button" onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button></div>
         </form>

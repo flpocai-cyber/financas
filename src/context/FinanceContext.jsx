@@ -199,6 +199,51 @@ export const FinanceProvider = ({ children }) => {
         return Object.entries(catMap).map(([name, value]) => ({ name, value }));
     };
 
+    const payExpense = async (expenseId, monthStr, paymentMethod, sourceId) => {
+        const exp = expenses.find(e => e.id === expenseId);
+        if (!exp) return;
+
+        // Deduzir ou adicionar na fatura
+        if (paymentMethod === 'account') {
+            const acc = accounts.find(a => a.id === sourceId);
+            if (acc) {
+                await updateAccount(acc.id, { balance: Number(acc.balance) - Number(exp.amount) });
+            }
+        } else if (paymentMethod === 'card') {
+            const card = cards.find(c => c.id === sourceId);
+            if (card) {
+                const today = new Date();
+                const currentDay = today.getDate();
+                let targetMonth = today.getMonth() + 1;
+                let targetYear = today.getFullYear();
+
+                if (currentDay >= Number(card.closingDay)) {
+                    targetMonth += 1;
+                    if (targetMonth > 12) {
+                        targetMonth = 1;
+                        targetYear += 1;
+                    }
+                }
+                const paddedMonth = targetMonth.toString().padStart(2, '0');
+                const startDate = `${targetYear}-${paddedMonth}`;
+
+                await addPurchase({
+                    cardId: card.id,
+                    description: `Pgto: ${exp.description}`,
+                    amount: exp.amount,
+                    installments: '1',
+                    startDate
+                });
+            }
+        }
+
+        // Marcar como pago
+        const paidMonths = exp.paidMonths || [];
+        if (!paidMonths.includes(monthStr)) {
+            await updateExpense(exp.id, { paidMonths: [...paidMonths, monthStr] });
+        }
+    };
+
     return (
         <FinanceContext.Provider value={{
             cards, purchases, expenses, incomes, accounts, cryptos, plans,
@@ -211,7 +256,7 @@ export const FinanceProvider = ({ children }) => {
             addPlan, updatePlan, deletePlan,
             totalBankBalance, monthlyFixedIncome, monthlyFixedExpenses,
             currentMonthInstallments, getInstallmentsForMonth, getInstallmentsForCardAndMonth, getInstallmentsBreakdownForMonth,
-            get12MonthProjection, getExpensesByCategory,
+            get12MonthProjection, getExpensesByCategory, payExpense
         }}>
             {children}
         </FinanceContext.Provider>
