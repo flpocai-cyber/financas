@@ -86,14 +86,47 @@ export const FinanceProvider = ({ children }) => {
     const totalBankBalance = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
     const now = new Date();
     const monthlyFixedIncome = incomes.reduce((sum, i) => {
-        if (i.type === 'fixed') return sum + Number(i.amount || 0);
+        const monthStr = now.toISOString().slice(0, 7);
+        // Exclude incomes that are already marked as received for this exact period
+        // For weekly incomes, we need to check if the specific occurrence was paid, which we'll handle by passing an exact periodKey like `2026-03-WK1`
+
+        if (i.type === 'fixed') {
+            if ((i.receivedPeriods || []).includes(monthStr)) return sum;
+            return sum + Number(i.amount || 0);
+        }
+        if (i.type === 'once') {
+            if ((i.receivedPeriods || []).includes(monthStr)) return sum;
+            if (new Date(i.date).toISOString().slice(0, 7) === monthStr) return sum + Number(i.amount || 0);
+            return sum;
+        }
         if (i.type === 'weekly') {
             const count = getWeekdaysInMonth(now.getFullYear(), now.getMonth() + 1, i.dayOfWeek);
-            return sum + (Number(i.amount || 0) * count);
+            let pendingCount = count;
+
+            // Subtrai do contador cada semana que já foi recebida no mês atual
+            for (let occurrence = 1; occurrence <= count; occurrence++) {
+                const periodKey = `${monthStr}-WK${occurrence}`;
+                if ((i.receivedPeriods || []).includes(periodKey)) {
+                    pendingCount--;
+                }
+            }
+            return sum + (Number(i.amount || 0) * pendingCount);
         }
         return sum;
     }, 0);
-    const monthlyFixedExpenses = expenses.filter(e => e.recurrence === 'monthly').reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    // Calcula o "Gastos do Mês" filtrando aquilo que já foi pago nesse exato mês para não deduzir duas vezes
+    const monthlyFixedExpenses = expenses.reduce((sum, e) => {
+        const monthStr = now.toISOString().slice(0, 7);
+        const isPaid = (e.paidMonths || []).includes(monthStr);
+        if (isPaid) return sum;
+
+        if (e.recurrence === 'monthly') return sum + Number(e.amount || 0);
+        if (e.recurrence === 'yearly' && new Date(e.date).getMonth() === now.getMonth()) return sum + Number(e.amount || 0);
+        if (e.recurrence === 'once' && new Date(e.date).toISOString().slice(0, 7) === monthStr) return sum + Number(e.amount || 0);
+
+        return sum;
+    }, 0);
 
     const getInstallmentsForMonth = (year, month) => {
         return purchases.reduce((sum, p) => {
@@ -159,9 +192,11 @@ export const FinanceProvider = ({ children }) => {
             }, 0);
             const variableInc = incomes.filter(inc => inc.type === 'variable' || inc.type === 'once').filter(inc => { const id = new Date(inc.date); return id.getFullYear() === y && id.getMonth() + 1 === m; }).reduce((s, inc) => s + Number(inc.amount || 0), 0);
             const totalInc = fixedInc + variableInc;
-            const fixedExp = expenses.filter(e => e.recurrence === 'monthly').reduce((s, e) => s + Number(e.amount || 0), 0);
-            const yearlyExp = expenses.filter(e => e.recurrence === 'yearly').filter(e => { const ed = new Date(e.date); return ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
-            const onceExp = expenses.filter(e => e.recurrence === 'once').filter(e => { const ed = new Date(e.date); return ed.getFullYear() === y && ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
+
+            const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+            const fixedExp = expenses.filter(e => e.recurrence === 'monthly' && !(e.paidMonths || []).includes(monthStr)).reduce((s, e) => s + Number(e.amount || 0), 0);
+            const yearlyExp = expenses.filter(e => e.recurrence === 'yearly' && !(e.paidMonths || []).includes(monthStr)).filter(e => { const ed = new Date(e.date); return ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
+            const onceExp = expenses.filter(e => e.recurrence === 'once' && !(e.paidMonths || []).includes(monthStr)).filter(e => { const ed = new Date(e.date); return ed.getFullYear() === y && ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
             const cardExp = getInstallmentsForMonth(y, m);
             const totalExp = fixedExp + yearlyExp + onceExp + cardExp;
 
@@ -194,7 +229,8 @@ export const FinanceProvider = ({ children }) => {
 
     const getExpensesByCategory = () => {
         const catMap = {};
-        expenses.filter(e => e.recurrence === 'monthly').forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + Number(e.amount || 0); });
+        const monthStr = now.toISOString().slice(0, 7);
+        expenses.filter(e => e.recurrence === 'monthly' && !(e.paidMonths || []).includes(monthStr)).forEach(e => { catMap[e.category] = (catMap[e.category] || 0) + Number(e.amount || 0); });
         if (currentMonthInstallments > 0) catMap['Cartão'] = (catMap['Cartão'] || 0) + currentMonthInstallments;
         return Object.entries(catMap).map(([name, value]) => ({ name, value }));
     };
@@ -244,19 +280,38 @@ export const FinanceProvider = ({ children }) => {
         }
     };
 
+    const receiveIncome = async (incomeId, periodKey, targetAccountId) => {
+        const inc = incomes.find(i => i.id === incomeId);
+        if (!inc) return;
+
+        // Adicionar o dinheiro na conta, caso não seja "cash" (Dinheiro Físico/Sem Conta)
+        if (targetAccountId && targetAccountId !== 'cash') {
+            const acc = accounts.find(a => a.id === targetAccountId);
+            if (acc) {
+                await updateAccount(acc.id, { balance: Number(acc.balance) + Number(inc.amount) });
+            }
+        }
+
+        // Marcar a ocorrência como recebida
+        const receivedPeriods = inc.receivedPeriods || [];
+        if (!receivedPeriods.includes(periodKey)) {
+            await updateIncome(inc.id, { receivedPeriods: [...receivedPeriods, periodKey] });
+        }
+    };
+
     return (
         <FinanceContext.Provider value={{
             cards, purchases, expenses, incomes, accounts, cryptos, plans,
             addCard, updateCard, deleteCard,
             addPurchase, updatePurchase, deletePurchase,
-            addExpense, updateExpense, deleteExpense,
-            addIncome, updateIncome, deleteIncome,
+            addExpense, updateExpense, deleteExpense, payExpense,
+            addIncome, updateIncome, deleteIncome, receiveIncome,
             addAccount, updateAccount, deleteAccount,
             addCrypto, updateCrypto, deleteCrypto,
             addPlan, updatePlan, deletePlan,
             totalBankBalance, monthlyFixedIncome, monthlyFixedExpenses,
             currentMonthInstallments, getInstallmentsForMonth, getInstallmentsForCardAndMonth, getInstallmentsBreakdownForMonth,
-            get12MonthProjection, getExpensesByCategory, payExpense
+            get12MonthProjection, getExpensesByCategory
         }}>
             {children}
         </FinanceContext.Provider>

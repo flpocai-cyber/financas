@@ -11,6 +11,7 @@ const navItems = [
     { to: '/cripto', icon: Bitcoin, label: 'Cripto' },
     { to: '/planejamento', icon: Target, label: 'Planejamento' },
     { to: '/bills', icon: Calendar, label: 'Contas a Pagar' },
+    { to: '/receivables', icon: Calendar, label: 'Contas a Receber' },
     { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
 ];
 

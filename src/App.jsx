@@ -11,6 +11,7 @@ import Crypto from './pages/Crypto';
 import Reports from './pages/Reports';
 import Planning from './pages/Planning';
 import Bills from './pages/Bills';
+import Receivables from './pages/Receivables';
 
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
                         <Route path="despesas" element={<Expenses />} />
                         <Route path="bills" element={<Bills />} />
                         <Route path="recebimentos" element={<Income />} />
+                        <Route path="receivables" element={<Receivables />} />
                         <Route path="contas" element={<BankAccounts />} />
                         <Route path="cripto" element={<Crypto />} />
                         <Route path="planejamento" element={<Planning />} />
