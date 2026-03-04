@@ -115,7 +115,7 @@ export default function Bills() {
                                     <label className="label">Qual a conta de origem?</label>
                                     <select className="input" value={paySource} onChange={(e) => setPaySource(e.target.value)}>
                                         {accounts.length === 0 && <option value="" disabled>Nenhuma conta cadastrada</option>}
-                                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name} (Saldo: {formatCurrency(acc.balance)})</option>)}
+                                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.nickname || acc.bank} (Saldo: {formatCurrency(acc.balance)})</option>)}
                                     </select>
                                     <p className="text-xs text-gray-500 mt-2">O valor será subtraído imediatamente do saldo real da sua conta.</p>
                                 </div>
