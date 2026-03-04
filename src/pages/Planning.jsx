@@ -69,11 +69,8 @@ export default function Planning() {
         }, 0);
     }
 
-    // Cria a projeção simulada mesclando os planos com a projeção base
-    let simulatedBalance = 0;
-    if (safeBaseProjection.length > 0 && safeBaseProjection[0] && typeof safeBaseProjection[0].balance !== 'undefined') {
-        simulatedBalance = safeBaseProjection[0].balance - (safeBaseProjection[0].net || 0);
-    }
+    // Cria a projeção simulada subtraindo mês a mês as despesas extras do saldo real
+    let accumulatedExtraExpenses = 0;
 
     const simulatedProjection = safeBaseProjection.map((p, idx) => {
         if (!p) return { month: '', "Saldo Atual": 0, "Saldo Simulado": 0, "Despesas Extras (Planos)": 0 };
@@ -81,15 +78,12 @@ export default function Planning() {
         const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
 
         const extraExpense = planMonthlyCosts[key] || 0;
-        const totalSimulatedExpenses = (p.expenses || 0) + extraExpense;
-        const simulatedNet = (p.income || 0) - totalSimulatedExpenses;
-
-        simulatedBalance += simulatedNet;
+        accumulatedExtraExpenses += extraExpense;
 
         return {
             month: p.month || '',
             "Saldo Atual": p.balance || 0,
-            "Saldo Simulado": simulatedBalance,
+            "Saldo Simulado": (p.balance || 0) - accumulatedExtraExpenses,
             "Despesas Extras (Planos)": extraExpense,
         };
     });
