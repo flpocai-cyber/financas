@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { useBitcoinPrice } from '../hooks/useBitcoinPrice';
 import { formatCurrency, formatPercent, getCategoryColor } from '../utils/formatters';
