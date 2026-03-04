@@ -89,7 +89,7 @@ export default function Receivables() {
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-2 h-2 rounded-full" style={{ background: '#00d4aa' }} />
-                                                    <span className={`text-sm ${isReceived ? 'text-gray-500 line-through' : 'text-white font-medium'}`}>{inc.source}</span>
+                                                    <span className={`text-sm ${isReceived ? 'text-gray-500 line-through' : 'text-white font-medium'}`}>{inc.description}</span>
                                                 </div>
                                                 <span className={`text-sm font-bold ${isReceived ? 'text-gray-500' : 'text-[#00d4aa]'}`}>+{formatCurrency(inc.amount)}</span>
                                             </div>
