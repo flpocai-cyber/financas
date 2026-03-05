@@ -11,6 +11,13 @@ export const useFinance = () => useContext(FinanceContext);
 // ID fixo do usuário (sem login por enquanto)
 const USER_ID = 'default-user';
 
+// Returns a valid Date or null — prevents crashes from empty/invalid date strings
+const safeDate = (dateStr) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+};
+
 const getWeekdaysInMonth = (year, month, dayOfWeekName) => {
     const daysMap = {
         'Domingo': 0, 'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3,
@@ -122,8 +129,16 @@ export const FinanceProvider = ({ children }) => {
         if (isPaid) return sum;
 
         if (e.recurrence === 'monthly') return sum + Number(e.amount || 0);
-        if (e.recurrence === 'yearly' && new Date(e.date).getMonth() === now.getMonth()) return sum + Number(e.amount || 0);
-        if (e.recurrence === 'once' && new Date(e.date).toISOString().slice(0, 7) === monthStr) return sum + Number(e.amount || 0);
+        if (e.recurrence === 'yearly') {
+            const d = safeDate(e.date);
+            if (d && d.getMonth() === now.getMonth()) return sum + Number(e.amount || 0);
+            return sum;
+        }
+        if (e.recurrence === 'once') {
+            const d = safeDate(e.date);
+            if (d && d.toISOString().slice(0, 7) === monthStr) return sum + Number(e.amount || 0);
+            return sum;
+        }
 
         return sum;
     }, 0);
@@ -190,13 +205,13 @@ export const FinanceProvider = ({ children }) => {
                 }
                 return s;
             }, 0);
-            const variableInc = incomes.filter(inc => inc.type === 'variable' || inc.type === 'once').filter(inc => { const id = new Date(inc.date); return id.getFullYear() === y && id.getMonth() + 1 === m; }).reduce((s, inc) => s + Number(inc.amount || 0), 0);
+            const variableInc = incomes.filter(inc => inc.type === 'variable' || inc.type === 'once').filter(inc => { const id = safeDate(inc.date); return id && id.getFullYear() === y && id.getMonth() + 1 === m; }).reduce((s, inc) => s + Number(inc.amount || 0), 0);
             const totalInc = fixedInc + variableInc;
 
             const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
             const fixedExp = expenses.filter(e => e.recurrence === 'monthly' && !(e.paidMonths || []).includes(monthStr)).reduce((s, e) => s + Number(e.amount || 0), 0);
-            const yearlyExp = expenses.filter(e => e.recurrence === 'yearly' && !(e.paidMonths || []).includes(monthStr)).filter(e => { const ed = new Date(e.date); return ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
-            const onceExp = expenses.filter(e => e.recurrence === 'once' && !(e.paidMonths || []).includes(monthStr)).filter(e => { const ed = new Date(e.date); return ed.getFullYear() === y && ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
+            const yearlyExp = expenses.filter(e => e.recurrence === 'yearly' && !(e.paidMonths || []).includes(monthStr)).filter(e => { const ed = safeDate(e.date); return ed && ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
+            const onceExp = expenses.filter(e => e.recurrence === 'once' && !(e.paidMonths || []).includes(monthStr)).filter(e => { const ed = safeDate(e.date); return ed && ed.getFullYear() === y && ed.getMonth() + 1 === m; }).reduce((s, e) => s + Number(e.amount || 0), 0);
             const cardExp = getInstallmentsForMonth(y, m);
             const totalExp = fixedExp + yearlyExp + onceExp + cardExp;
 
