@@ -30,7 +30,7 @@ export default function Bills() {
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
 
-                    // Find matching expenses
+                    // Despesas que vencem nesse dia
                     const dayBills = expenses.filter(e => {
                         if (!e.date) return false;
                         const parts = e.date.split('-');
@@ -42,8 +42,11 @@ export default function Bills() {
 
                         if (eDay !== day) return false;
 
+                        // Eventual: só aparece no mês/ano exato
                         if (e.recurrence === 'once' && (eMonth !== currentMonth || eYear !== currentYear)) return false;
+                        // Anual: só aparece no mês cadastrado
                         if (e.recurrence === 'yearly' && eMonth !== currentMonth) return false;
+                        // Mensal: aparece todo mês nesse dia ✓
 
                         return true;
                     });
@@ -89,6 +92,13 @@ export default function Bills() {
                         </div>
                     );
                 })}
+                {expenses.filter(e => e.date).length === 0 && (
+                    <div className="col-span-3 card flex flex-col items-center justify-center py-16 text-center">
+                        <Calendar size={40} className="text-gray-700 mb-3" />
+                        <p className="text-gray-400 font-medium">Nenhuma conta com vencimento cadastrado</p>
+                        <p className="text-gray-600 text-sm mt-1">Vá em <strong className="text-gray-400">Despesas</strong> e adicione uma despesa com data de vencimento.</p>
+                    </div>
+                )}
             </div>
 
             {/* Modal de Pagamento */}

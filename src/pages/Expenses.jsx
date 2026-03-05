@@ -8,16 +8,17 @@ const RECURRENCES = [{ value: 'monthly', label: 'Mensal' }, { value: 'yearly', l
 
 function ExpenseForm({ onSave, onCancel, initial }) {
     const [form, setForm] = useState(initial || { description: '', amount: '', category: 'Outros', recurrence: 'monthly', date: '' });
+    const isDateRequired = true;
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onSave(form); }} className="card mb-4 border-[#f43f5e]/30 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); if (!form.date) { alert('Por favor, informe a data de vencimento.'); return; } onSave(form); }} className="card mb-4 border-[#f43f5e]/30 animate-fade-in">
             <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Receipt size={16} className="text-[#f43f5e]" />{initial ? 'Editar' : 'Nova'} Despesa</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="col-span-2"><label className="label">Descrição</label><input className="input" placeholder="Faculdade, IPVA..." value={form.description} onChange={e => set('description', e.target.value)} required /></div>
                 <div><label className="label">Valor (R$)</label><input className="input" type="number" placeholder="500" value={form.amount} onChange={e => set('amount', e.target.value)} required /></div>
                 <div><label className="label">Categoria</label><select className="input" value={form.category} onChange={e => set('category', e.target.value)}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></div>
                 <div><label className="label">Recorrência</label><select className="input" value={form.recurrence} onChange={e => set('recurrence', e.target.value)}>{RECURRENCES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
-                <div><label className="label">Data Vencimento</label><input className="input" type="date" value={form.date} onChange={e => set('date', e.target.value)} /></div>
+                <div><label className="label">Data Vencimento <span className="text-[#f43f5e]">*</span></label><input className="input" type="date" value={form.date} onChange={e => set('date', e.target.value)} required /></div>
             </div>
             <div className="flex gap-3 mt-4"><button type="submit" className="btn-primary">Salvar</button><button type="button" onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white">Cancelar</button></div>
         </form>
